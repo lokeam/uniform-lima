@@ -14,10 +14,10 @@ interface BoundingBox {
 }
 
 const LABEL_COLORS: Record<string, string> = {
-  OBJECT: '#3b82f6',
-  PERSON: '#10b981',
-  ANIMAL: '#f59e0b',
-  VEHICLE: '#8b5cf6',
+  COSMETIC: '#3b82f6',
+  MECHANICAL: '#10b981',
+  STRUCTURAL: '#f59e0b',
+  SAFETY_SYSTEMS: '#8b5cf6',
   CUSTOM: '#ec4899',
 };
 
@@ -37,7 +37,7 @@ export default function ImageLabelingPage() {
   const [showLabelPopup, setShowLabelPopup] = useState(false);
   const [pendingBox, setPendingBox] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [labelInput, setLabelInput] = useState('');
-  const [suggestedLabels] = useState(['OBJECT', 'PERSON', 'ANIMAL', 'VEHICLE']);
+  const [suggestedLabels] = useState(['COSMETIC', 'MECHANICAL', 'STRUCTURAL', 'SAFETY_SYSTEMS']);
   const [imageLoaded, setImageLoaded] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
