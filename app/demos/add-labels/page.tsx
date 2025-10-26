@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 interface Label {
   id: string;
@@ -38,6 +38,7 @@ export default function AddLabelsPage() {
   const [suggestedLabels] = useState(['PERSON', 'ORGANIZATION', 'LOCATION', 'DATE']);
   const textRef = useRef<HTMLDivElement>(null);
   const savedRangeRef = useRef<Range | null>(null);
+  const idCounterRef = useRef(0);
 
   // Handle text selection
   const handleMouseUp = () => {
@@ -65,10 +66,6 @@ export default function AddLabelsPage() {
     // Position it higher to avoid obscuring the selection
     const x = rect.left + rect.width / 2 - containerRect.left;
     const y = rect.top - containerRect.top - 60; // 60px above selection for popup + caret
-
-    // Get text indices from the actual DOM range position
-    // We need to calculate the offset from the start of the text container
-    const textContent = textRef.current.textContent || '';
 
     // Create a range from the start of the container to the start of the selection
     const preRange = document.createRange();
@@ -101,7 +98,7 @@ export default function AddLabelsPage() {
     if (!selectedText || !selectedRange) return;
 
     const newLabel: Label = {
-      id: Date.now().toString(),
+      id: `label-${++idCounterRef.current}`,
       text: selectedText,
       label: labelType,
       startIndex: selectedRange.start,
@@ -209,7 +206,7 @@ export default function AddLabelsPage() {
     // Sort labels by start index
     const sortedLabels = [...labels].sort((a, b) => a.startIndex - b.startIndex);
 
-    const parts: JSX.Element[] = [];
+    const parts: React.JSX.Element[] = [];
     let lastIndex = 0;
 
     sortedLabels.forEach((label, idx) => {

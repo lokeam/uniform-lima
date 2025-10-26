@@ -1,6 +1,6 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
-import Image from 'next/image';
 import { useState, useRef, useEffect, useCallback } from 'react';
 
 interface BoundingBox {
@@ -42,6 +42,7 @@ export default function ImageLabelingPage() {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
+  const idCounterRef = useRef(0);
 
   // Draw all boxes on canvas
   const drawBoxes = useCallback(() => {
@@ -78,24 +79,24 @@ export default function ImageLabelingPage() {
 
   // Initialize canvas when image loads
   useEffect(() => {
-    const image = imageRef.current;
-    const canvas = canvasRef.current;
-
-    if (image && canvas) {
-      // If image is already loaded (cached), initialize immediately
-      if (image.complete && image.naturalWidth > 0) {
-        canvas.width = image.naturalWidth;
-        canvas.height = image.naturalHeight;
-        setImageLoaded(true);
-      }
-    }
-  }, []); // Run once on mount
-
-  useEffect(() => {
     if (imageLoaded) {
       drawBoxes();
     }
   }, [drawBoxes, imageLoaded]);
+
+  // Initialize canvas when component mounts if image is already cached
+  useEffect(() => {
+    const image = imageRef.current;
+    const canvas = canvasRef.current;
+
+    if (image && canvas && image.complete && image.naturalWidth > 0) {
+      // Image is already loaded (from cache), initialize canvas
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      // Use a microtask to avoid synchronous setState in effect
+      Promise.resolve().then(() => setImageLoaded(true));
+    }
+  }, []);
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -154,7 +155,7 @@ export default function ImageLabelingPage() {
   const addLabel = (labelType: string) => {
     if (!pendingBox) return;
     const newBox: BoundingBox = {
-      id: Date.now().toString(),
+      id:`label-box-${++idCounterRef.current}`,
       ...pendingBox,
       label: labelType,
       color: LABEL_COLORS[labelType] || LABEL_COLORS.CUSTOM,
@@ -191,6 +192,7 @@ export default function ImageLabelingPage() {
   const exportImage = () => {
     const canvas = canvasRef.current;
     const image = imageRef.current;
+
     if (!canvas || !image) return;
 
     // Create a temporary canvas to combine image + labels
@@ -282,6 +284,7 @@ export default function ImageLabelingPage() {
 
       <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
         <div className="relative inline-block">
+          {}
           <img
             ref={imageRef}
             src={SAMPLE_IMAGE}
