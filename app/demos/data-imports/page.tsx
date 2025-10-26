@@ -2,6 +2,8 @@
 import { PageHeadline } from "@/components/layout/page-headline";
 import { PageMain } from "@/components/layout/page-main";
 import { PageGrid } from "@/components/layout/page-grid";
+
+// Custom components
 import { UploadCard } from '@/app/demos/data-imports/UploadCard';
 
 const uploadCards = [
@@ -15,14 +17,14 @@ const uploadCards = [
     url: '/demos/data-imports/manual-upload'
   },
   {
-    title: 'Connect to Web Storage',
+    title: 'Chunked Upload (Real)',
     useCases: [
       'Large data sets (100+ files)',
-      'Self-hosted data',
-      'Continuous imports'
+      'Reliable uploads with retry',
+      'Real FileReader API demo'
     ],
-    icon: '☁️',
-    url: '/demos/data-imports/web-storage-upload'
+    icon: '🧩',
+    url: '/demos/data-imports/chunked-upload'
   },
   {
     title: 'API Import',
