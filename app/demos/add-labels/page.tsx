@@ -19,10 +19,17 @@ const LABEL_COLORS: Record<string, string> = {
   CUSTOM: 'bg-pink-200 dark:bg-pink-900/40 border-pink-400',
 };
 
-const SAMPLE_TEXT = `The Beatles were an English rock band formed in Liverpool in 1960. The core lineup of the band comprised John Lennon, Paul McCartney, George Harrison and Ringo Starr. They are widely regarded as the most influential band in Western popular music and were integral to the development of 1960s counterculture and the recognition of popular music as an art form.[2][3] Rooted in skiffle, beat and 1950s rock 'n' roll, their sound incorporated elements of classical music and traditional pop in innovative ways. The band also explored music styles ranging from folk and Indian music to psychedelia and hard rock. As pioneers in recording, songwriting and artistic presentation, the Beatles revolutionised many aspects of the music industry and were often publicised as leaders of the era's youth and sociocultural movements.`;
+const SAMPLE_TEXT = `The Beatles were an English rock band formed in Liverpool in 1960. The core lineup of the band comprised John Lennon, Paul McCartney, George Harrison and Ringo Starr. They are widely regarded as the most influential band in Western popular music and were integral to the development of 1960s counterculture and the recognition of popular music as an art form. Rooted in skiffle, beat and 1950s rock 'n' roll, their sound incorporated elements of classical music and traditional pop in innovative ways. The band also explored music styles ranging from folk and Indian music to psychedelia and hard rock. As pioneers in recording, songwriting and artistic presentation, the Beatles revolutionised many aspects of the music industry and were often publicised as leaders of the era's youth and sociocultural movements.`;
 
 export default function AddLabelsPage() {
-  const [labels, setLabels] = useState<Label[]>([]);
+  const [labels, setLabels] = useState<Label[]>(() => {
+    // Load saved labels from session storage on mount
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('text-labels');
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
   const [showPopup, setShowPopup] = useState(false);
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
   const [selectedText, setSelectedText] = useState('');
@@ -124,6 +131,77 @@ export default function AddLabelsPage() {
     setLabels(labels.filter(l => l.id !== id));
   };
 
+  // Save labels to session storage whenever they change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('text-labels', JSON.stringify(labels));
+    }
+  }, [labels]);
+
+  // Clear all labels
+  const clearAll = () => {
+    if (confirm('Clear all labels?')) {
+      setLabels([]);
+      sessionStorage.removeItem('text-labels');
+    }
+  };
+
+  // Export labels as JSON
+  const exportJSON = () => {
+    const data = {
+      text: SAMPLE_TEXT,
+      labels: labels.map(l => ({
+        text: l.text,
+        label: l.label,
+        start: l.startIndex,
+        end: l.endIndex,
+      })),
+      metadata: {
+        exportDate: new Date().toISOString(),
+        totalLabels: labels.length,
+      },
+    };
+    downloadFile(JSON.stringify(data, null, 2), 'text-labels.json', 'application/json');
+  };
+
+  // Export labels as CSV
+  const exportCSV = () => {
+    const headers = ['text', 'label', 'start_index', 'end_index'];
+    const rows = labels.map(l => [
+      `"${l.text.replace(/"/g, '""')}"`, // Escape quotes
+      l.label,
+      l.startIndex,
+      l.endIndex,
+    ]);
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    downloadFile(csv, 'text-labels.csv', 'text/csv');
+  };
+
+  // Export labels as JSONL (JSON Lines - common for NLP datasets)
+  const exportJSONL = () => {
+    const jsonl = labels
+      .map(l => JSON.stringify({
+        text: l.text,
+        label: l.label,
+        start: l.startIndex,
+        end: l.endIndex,
+        context: SAMPLE_TEXT.slice(Math.max(0, l.startIndex - 50), Math.min(SAMPLE_TEXT.length, l.endIndex + 50)),
+      }))
+      .join('\n');
+    downloadFile(jsonl, 'text-labels.jsonl', 'application/x-ndjson');
+  };
+
+  // Helper function to download file
+  const downloadFile = (content: string, filename: string, mimeType: string) => {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   // Render text with highlights
   const renderTextWithLabels = () => {
     if (labels.length === 0) return SAMPLE_TEXT;
@@ -176,11 +254,59 @@ export default function AddLabelsPage() {
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold mb-2">Text Labeling Demo</h2>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          Select any text with your mouse to add a label. Click on labeled text to remove it.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold mb-2">Text Labeling Demo</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Select any text with your mouse to add a label. Click on labeled text to remove it.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {/* Export Dropdown */}
+          <div className="relative group">
+            <button
+              disabled={labels.length === 0}
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2"
+            >
+              Export
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {labels.length > 0 && (
+              <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+                <button
+                  onClick={exportJSON}
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded-t-lg"
+                >
+                  <div className="font-medium">JSON</div>
+                  <div className="text-xs text-gray-500">Full dataset format</div>
+                </button>
+                <button
+                  onClick={exportCSV}
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <div className="font-medium">CSV</div>
+                  <div className="text-xs text-gray-500">Spreadsheet format</div>
+                </button>
+                <button
+                  onClick={exportJSONL}
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded-b-lg"
+                >
+                  <div className="font-medium">JSONL</div>
+                  <div className="text-xs text-gray-500">NLP training format</div>
+                </button>
+              </div>
+            )}
+          </div>
+          <button
+            onClick={clearAll}
+            disabled={labels.length === 0}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+          >
+            Clear All
+          </button>
+        </div>
       </div>
 
       {/* Text Area */}
