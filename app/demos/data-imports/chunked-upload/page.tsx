@@ -16,9 +16,9 @@ interface UploadFile {
 }
 
 const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 export default function ChunkedUploadPage() {
-  const [isRealUploadMode, setIsRealUploadMode] = useState<boolean>(false);
   const [files, setFiles] = useState<UploadFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -56,7 +56,8 @@ export default function ChunkedUploadPage() {
             });
 
             if (!response.ok) {
-              throw new Error(`Chunk ${chunkIndex} upload failed`);
+              const errorText = await response.text().catch(() => 'Unknown error');
+              throw new Error(`Chunk ${chunkIndex} upload failed: ${response.status} ${errorText}`);
             }
 
             // Update progress
@@ -82,7 +83,8 @@ export default function ChunkedUploadPage() {
           });
 
           if (!finalizeResponse.ok) {
-            throw new Error('Failed to finalize upload');
+            const errorText = await finalizeResponse.text().catch(() => 'Unknown error');
+            throw new Error(`Failed to finalize upload: ${finalizeResponse.status} ${errorText}`);
           }
 
           const result = await finalizeResponse.json();
@@ -126,6 +128,12 @@ export default function ChunkedUploadPage() {
   };
 
   const handleUpload = async () => {
+    // Block uploads in production
+    if (IS_PRODUCTION) {
+      alert('Uploads are disabled in production for this demo.');
+      return;
+    }
+
     const pendingFiles = files.filter(f => f.status === 'pending');
 
     // Upload files sequentially (or use Promise.all for parallel)
@@ -149,35 +157,51 @@ export default function ChunkedUploadPage() {
   return (
     <PageMain>
       <UploadModeBanner
-        isRealMode={isRealUploadMode}
-        onToggle={setIsRealUploadMode}
+        isProduction={IS_PRODUCTION}
       />
-      {/* Info Banner */}
-      <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-8">
-        <div className="flex items-start gap-3">
-          <span className="text-xl">✅</span>
-          <div className="flex-1">
-            <h4 className="font-semibold text-green-900 dark:text-green-100 mb-1">Real Chunked Upload</h4>
-            <p className="text-sm text-green-800 dark:text-green-200 mb-2">
-              This demo uses <strong>real chunked uploads</strong> with the FileReader API.
-              Files are split into 5MB chunks and uploaded to the local server.
-            </p>
-            <details className="text-sm">
-              <summary className="cursor-pointer text-green-700 dark:text-green-300 hover:underline font-medium">
-                Technical Details
-              </summary>
-              <ul className="mt-2 ml-5 list-disc space-y-1 text-green-700 dark:text-green-300">
-                <li>FileReader API reads files as ArrayBuffer</li>
-                <li>Files split into 5MB chunks</li>
-                <li>Each chunk uploaded via POST to /api/upload/chunk</li>
-                <li>Server assembles chunks in /api/upload/finalize</li>
-                <li>Files stored in .uploads/ (auto-deleted after 5 min)</li>
-                <li>Disabled in production (set ENABLE_UPLOADS=true to enable)</li>
-              </ul>
-            </details>
+      {/* Production Warning Banner */}
+      {IS_PRODUCTION && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4">
+          <div className="flex items-start gap-3">
+            <span className="text-xl">⚠️</span>
+            <div className="flex-1">
+              <h4 className="font-semibold text-yellow-900 dark:text-yellow-100 mb-1">Production Mode</h4>
+              <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                Real uploads are disabled in production. This is a demo page showing the UI and functionality.
+                The upload API endpoints are not available in production.
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Info Banner - Only show in development */}
+      {!IS_PRODUCTION && (
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-8">
+          <div className="flex items-start gap-3">
+            <span className="text-xl">✅</span>
+            <div className="flex-1">
+              <h4 className="font-semibold text-green-900 dark:text-green-100 mb-1">Real Chunked Upload</h4>
+              <p className="text-sm text-green-800 dark:text-green-200 mb-2">
+                This demo uses <strong>real chunked uploads</strong> with the FileReader API.
+                Files are split into 5MB chunks and uploaded to the local server.
+              </p>
+              <details className="text-sm">
+                <summary className="cursor-pointer text-green-700 dark:text-green-300 hover:underline font-medium">
+                  Technical Details
+                </summary>
+                <ul className="mt-2 ml-5 list-disc space-y-1 text-green-700 dark:text-green-300">
+                  <li>FileReader API reads files as ArrayBuffer</li>
+                  <li>Files split into 5MB chunks</li>
+                  <li>Each chunk uploaded via POST to /api/upload/chunk</li>
+                  <li>Server assembles chunks in /api/upload/finalize</li>
+                  <li>Files stored in .uploads/ (auto-deleted after 5 min)</li>
+                </ul>
+              </details>
+            </div>
+          </div>
+        </div>
+      )}
 
       <h2 className="text-2xl font-bold mb-4">Chunked File Upload</h2>
 
@@ -255,10 +279,11 @@ export default function ChunkedUploadPage() {
 
           <button
             onClick={handleUpload}
-            disabled={files.every(f => f.status !== 'pending')}
+            disabled={files.every(f => f.status !== 'pending') || IS_PRODUCTION}
             className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            title={IS_PRODUCTION ? 'Uploads disabled in production' : ''}
           >
-            Upload Files
+            {IS_PRODUCTION ? 'Upload Disabled (Production)' : 'Upload Files'}
           </button>
         </div>
       )}

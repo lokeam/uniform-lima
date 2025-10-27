@@ -13,16 +13,14 @@ interface FileInfo {
   preview?: string[];
 }
 
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+
 export default function ManualUploadPage() {
   const [files, setFiles] = useState<FileInfo[]>([]);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
-  const [isRealUploadMode, setIsRealUploadMode] = useState<boolean>(false);
-  const [uploadComplete, setUploadComplete] = useState(false);
-  const [uploadStartTime, setUploadStartTime] = useState<number | null>(null);
-  const [uploadEndTime, setUploadEndTime] = useState<number | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -195,16 +193,15 @@ export default function ManualUploadPage() {
 
   const handleUpload = async () => {
     setIsUploading(true);
-    setUploadStartTime(Date.now());
 
-    if (isRealUploadMode) {
-      // Real chunked upload
+    if (!IS_PRODUCTION) {
+      // Real chunked upload (development only)
       await Promise.all(
         files.map(fileInfo => uploadFileReal(fileInfo.file))
       );
     } else {
       console.log('🚀 Starting parallel upload for', files.length, 'files');
-      // Simulated upload
+      // Simulated upload (production)
       await Promise.all(
         files.map(fileInfo => simulateUpload(fileInfo.file))
       );
@@ -225,8 +222,6 @@ export default function ManualUploadPage() {
 
     // Show completion summary
     setIsUploading(false);
-    setUploadEndTime(Date.now());
-    setUploadComplete(true);
   };
 
   // Calculate totals
@@ -242,8 +237,7 @@ export default function ManualUploadPage() {
     <PageMain>
       {/* Upload Mode Banner */}
       <UploadModeBanner
-        isRealMode={isRealUploadMode}
-        onToggle={setIsRealUploadMode}
+        isProduction={IS_PRODUCTION}
       />
 
       {/* Info Banner */}

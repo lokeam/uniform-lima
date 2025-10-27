@@ -20,7 +20,7 @@ export default function DemosLayout({ children }: { children: ReactNode }) {
         url: '/',
       }}
       sidebar={{
-        defaultOpenLevel: 1,
+        defaultOpenLevel: 0,
       }}
     >
       {children}
