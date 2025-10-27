@@ -13,9 +13,9 @@ export function PageMain({
   return (
     <main
       className={cn(
-        'peer-[.header-fixed]/header:mt-16',
-        'px-4 py-6',
-        fixed && 'fixed-main flex flex-col grow overflow-hidden'
+        'peer-[.header-fixed]/header:mt-16 mx-auto w-full max-w-4xl',
+        'px-4 py-16',
+        fixed && 'fixed-main flex flex-col grow overflow-hidden '
       )}
       {...props}
     />
