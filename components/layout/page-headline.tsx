@@ -3,22 +3,29 @@ import { cn } from '@/components/ui/utils';
 
 interface PageHeadlineProps extends React.HTMLAttributes<HTMLElement> {
   className?: string;
-  children?: React.ReactNode;
+  title: string;
+  description?: string;
 };
 
 export function PageHeadline({
   className,
-  children,
+  title,
+  description,
   ...props
 }: PageHeadlineProps) {
   return (
     <div
       className={cn(
-        'mb-2 flex flex-row items-center justify-between space-y-2', className
+        'flex items-center justify-between mb-8', className
       )}
       {...props}
     >
-      {children}
+      <div>
+        <h1 className="text-4xl font-bold mb-2">{title}</h1>
+        {description && (
+          <p className="text-[#a1a1aa] text-lg">{description}</p>
+        )}
+      </div>
     </div>
   );
 };

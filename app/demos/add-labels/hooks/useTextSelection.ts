@@ -107,8 +107,23 @@ export function useTextSelection(
 
     // Verify the selection matches the source words
     const expectedText = words.slice(startWordIndex, endWordIndex + 1).join(' ');
-    if (expectedText !== text.trim()) {
-      console.error('Word index mismatch:', { expectedText, actualText: text.trim(), startWordIndex, endWordIndex });
+
+    // Normalize both texts by removing trailing punctuation for comparison
+    const normalize = (str: string) => str.replace(/[.,;:!?]+$/g, '').trim();
+    const normalizedExpected = normalize(expectedText);
+    const normalizedActual = normalize(text);
+
+    if (normalizedExpected !== normalizedActual) {
+      console.error('Word index mismatch:', {
+        expectedText,
+        actualText: text.trim(),
+        normalizedExpected,
+        normalizedActual,
+        startWordIndex,
+        endWordIndex,
+        textBefore,
+        wordsBeforeCount: wordsBefore.length
+      });
       setShowPopup(false);
       return;
     }

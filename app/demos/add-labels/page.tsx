@@ -96,23 +96,25 @@ export default function AddLabelsPage() {
 
     return parts;
   };
-// <div className="max-w-4xl mx-auto p-6 space-y-6">
+
   return (
     <PageMain>
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-4xl font-bold mb-2 ">Text Labeling Demo</h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Select any text with your mouse to add a label. Click on labeled text to remove it.
-          </p>
-        </div>
+      <PageHeadline
+        title="Text Labeling Component Demo"
+        description="Click and label any text rendered on the DOM within the component. Export as JSON, CSV, or JSONL."
+      />
+
+      {/* Directions + Download Buttons */}
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-sm text-gray-600 dark:text-gray-400">
+          Select any text with your mouse to add a label. Click on labeled text to remove it.
+        </p>
         <div className="flex gap-2">
           {/* Export Dropdown */}
           <div className="relative group">
             <button
               disabled={labels.length === 0}
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2"
+              className="px-6 py-2 bg-charcoal-900 text-white dark:bg-white dark:text-black rounded-xl transition duration-150 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2"
             >
               Export
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -120,24 +122,24 @@ export default function AddLabelsPage() {
               </svg>
             </button>
             {labels.length > 0 && (
-              <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+              <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-[background,opacity,visibility] duration-215 z-10">
                 <button
                   onClick={handleExportJSON}
-                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded-t-lg"
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded-t-lg transition-[background] duration-[180ms]"
                 >
                   <div className="font-medium">JSON</div>
                   <div className="text-xs text-gray-500">Full dataset format</div>
                 </button>
                 <button
                   onClick={handleExportCSV}
-                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-[background] duration-[180ms]"
                 >
                   <div className="font-medium">CSV</div>
                   <div className="text-xs text-gray-500">Spreadsheet format</div>
                 </button>
                 <button
                   onClick={handleExportJSONL}
-                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded-b-lg"
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded-b-lg transition-[background] duration-[180ms]"
                 >
                   <div className="font-medium">JSONL</div>
                   <div className="text-xs text-gray-500">NLP training format</div>
@@ -148,19 +150,22 @@ export default function AddLabelsPage() {
           <button
             onClick={clearAll}
             disabled={labels.length === 0}
-            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+            className="px-6 py-2 rounded-xl bg-white text-black transition duration-200 hover:bg-gray-300 dark:border-neutral-700 dark:bg-neutral-950 dark:text-white dark:hover:bg-neutral-800"
           >
             Clear All
           </button>
         </div>
       </div>
 
-      {/* Text Area */}
+      {/* Text Area
+
+      block rounded-xl px-6 py-2 text-center text-sm font-medium active:scale-[0.98] sm:text-base border-divide border bg-white text-black transition duration-200 hover:bg-gray-300 dark:border-neutral-700 dark:bg-neutral-950 dark:text-white dark:hover:bg-neutral-800
+      */}
       <div className="relative">
         <div
           ref={textRef}
           onMouseUp={handleMouseUp}
-          className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg p-6 leading-relaxed text-gray-900 dark:text-gray-100 select-text cursor-text"
+          className="bg-white dark:bg-black border border-gray-300 dark:border-gray-600 rounded-lg p-6 mb-8 leading-relaxed text-gray-900 dark:text-gray-100 select-text cursor-text"
         >
           {renderTextWithLabels()}
         </div>
@@ -177,7 +182,7 @@ export default function AddLabelsPage() {
 
       {/* Labels Summary */}
       {labels.length > 0 && (
-        <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+        <div className="bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-8">
           <h3 className="font-semibold mb-3 text-sm">Labels ({labels.length}):</h3>
           <div className="flex flex-wrap gap-2">
             {labels.map((label) => (
