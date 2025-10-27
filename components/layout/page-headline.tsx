@@ -21,7 +21,7 @@ export function PageHeadline({
       {...props}
     >
       <div>
-        <h1 className="text-4xl font-bold mb-2">{title}</h1>
+        <h1 className="text-4xl font-bold mb-4">{title}</h1>
         {description && (
           <p className="text-[#a1a1aa] text-lg">{description}</p>
         )}

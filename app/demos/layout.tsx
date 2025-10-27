@@ -1,12 +1,9 @@
-import { DocsLayout, type DocsLayoutProps } from 'fumadocs-ui/layouts/docs';
+import { DocsLayout } from 'fumadocs-ui/layouts/docs';
 import { pageTree } from './source';
-import UplabelrLogo from '@/components/ui/logos/UplabelrLogo';
+import UplabelrLogo from '@/components/ui/Icons/UplabelrLogo';
 
 // Types
 import type { ReactNode } from 'react';
-
-// Fumadocs UI Components
-import { GithubInfo } from 'fumadocs-ui/components/github-info';
 
 export default function DemosLayout({ children }: { children: ReactNode }) {
   return (
