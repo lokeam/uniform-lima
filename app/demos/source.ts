@@ -10,11 +10,11 @@ export const pageTree: PageTree.Root = {
     },
     {
       type: 'folder',
-      name: 'Data Imports',
+      name: 'Upload Demos',
       index: {
         type: 'page',
-        name: 'Data Imports',
-        url: '/demos/data-imports',
+        name: 'Upload Demos',
+        url: '/demos/data-imports/chunked-upload',
       },
       children: [
         {

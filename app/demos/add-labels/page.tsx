@@ -125,21 +125,21 @@ export default function AddLabelsPage() {
               <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-[background,opacity,visibility] duration-215 z-10">
                 <button
                   onClick={handleExportJSON}
-                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded-t-lg transition-[background] duration-[180ms]"
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded-t-lg transition-[background] duration-180"
                 >
                   <div className="font-medium">JSON</div>
                   <div className="text-xs text-gray-500">Full dataset format</div>
                 </button>
                 <button
                   onClick={handleExportCSV}
-                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-[background] duration-[180ms]"
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-[background] duration-180"
                 >
                   <div className="font-medium">CSV</div>
                   <div className="text-xs text-gray-500">Spreadsheet format</div>
                 </button>
                 <button
                   onClick={handleExportJSONL}
-                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded-b-lg transition-[background] duration-[180ms]"
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded-b-lg transition-[background] duration-180"
                 >
                   <div className="font-medium">JSONL</div>
                   <div className="text-xs text-gray-500">NLP training format</div>

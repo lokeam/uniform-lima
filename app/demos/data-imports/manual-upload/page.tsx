@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+
+import { PageHeadline } from "@/components/layout/page-headline";
+import { PageMain } from "@/components/layout/page-main";
 
 import { UploadModeBanner } from '@/app/demos/data-imports/UploadModeBanner';
 
@@ -17,10 +19,12 @@ export default function ManualUploadPage() {
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
-
   const [isRealUploadMode, setIsRealUploadMode] = useState<boolean>(false);
+  const [uploadComplete, setUploadComplete] = useState(false);
+  const [uploadStartTime, setUploadStartTime] = useState<number | null>(null);
+  const [uploadEndTime, setUploadEndTime] = useState<number | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const router = useRouter();
 
   // Parse CSV to count records
   const parseCSV = async (file: File): Promise<{ recordCount: number; preview: string[] }> => {
@@ -191,6 +195,7 @@ export default function ManualUploadPage() {
 
   const handleUpload = async () => {
     setIsUploading(true);
+    setUploadStartTime(Date.now());
 
     if (isRealUploadMode) {
       // Real chunked upload
@@ -205,16 +210,9 @@ export default function ManualUploadPage() {
       );
     }
 
-    // Upload all files in parallel (like real browsers do)
-    // Browsers typically allow 6-8 simultaneous connections per domain
-    await Promise.all(
-      files.map(fileInfo => simulateUpload(fileInfo.file))
-    );
-
     console.log('💾 All uploads complete! Saving to sessionStorage:', files);
 
     // Store files in sessionStorage (demo only)
-    // In production: const response = await uploadToServer(files);
     const fileData = files.map(f => ({
       name: f.file.name,
       size: f.file.size,
@@ -225,25 +223,11 @@ export default function ManualUploadPage() {
     sessionStorage.setItem('uploadedFiles', JSON.stringify(fileData));
     console.log('✅ Saved to sessionStorage');
 
-    // Navigate to next step or cases page
-    router.push('/demos/cases');
+    // Show completion summary
+    setIsUploading(false);
+    setUploadEndTime(Date.now());
+    setUploadComplete(true);
   };
-
-  const handleContinue = () => {
-    // Store files in sessionStorage (demo only)
-    // In production: const response = await uploadToServer(files);
-    sessionStorage.setItem('uploadedFiles', JSON.stringify(
-      files.map(f => ({
-        name: f.file.name,
-        size: f.file.size,
-        recordCount: f.recordCount,
-      }))
-    ));
-
-    // Navigate to next step or cases page
-    router.push('/demos/cases');
-  };
-
 
   // Calculate totals
   const totalSize = files.reduce((sum, f) => sum + f.file.size, 0);
@@ -255,16 +239,71 @@ export default function ManualUploadPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <PageMain>
       {/* Upload Mode Banner */}
       <UploadModeBanner
         isRealMode={isRealUploadMode}
         onToggle={setIsRealUploadMode}
       />
 
+      {/* Info Banner */}
+      <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4 mb-8">
+        <div className="flex items-start gap-3">
+          <span className="text-xl">📤</span>
+          <div className="flex-1">
+            <h4 className="font-semibold text-purple-900 dark:text-purple-100 mb-1">Multi-File Upload Demo</h4>
+            <p className="text-sm text-purple-800 dark:text-purple-200 mb-2">
+              This demo showcases batch file uploads with real-time progress tracking and validation.
+            </p>
+            <details className="text-sm">
+              <summary className="cursor-pointer text-purple-700 dark:text-purple-300 hover:underline font-medium">
+                How It Works
+              </summary>
+              <div className="mt-3 space-y-3 text-purple-700 dark:text-purple-300">
+                <div>
+                  <p className="font-medium mb-1">📋 Normal Upload Process:</p>
+                  <ol className="ml-5 list-decimal space-y-1">
+                    <li>User selects or drags files into the drop zone</li>
+                    <li>Files are validated (type, size, duplicates)</li>
+                    <li>Each file is uploaded to the server with progress tracking</li>
+                    <li>Server processes and stores the files</li>
+                  </ol>
+                </div>
+                <div>
+                  <p className="font-medium mb-1">🎭 Simulation Mode (Default):</p>
+                  <ul className="ml-5 list-disc space-y-1">
+                    <li><strong>What:</strong> Simulates realistic upload behavior without server requests</li>
+                    <li><strong>How:</strong> Uses JavaScript timers to mimic network latency and progress</li>
+                    <li><strong>Speed:</strong> Calculates duration based on file size (~2MB/sec)</li>
+                    <li><strong>Realism:</strong> Adds random variance (±2%) to simulate network fluctuations</li>
+                  </ul>
+                </div>
+                <div>
+                  <p className="font-medium mb-1">⚡ Real Upload Mode: (only available locally)</p>
+                  <ul className="ml-5 list-disc space-y-1">
+                    <li>Uses FileReader API to read files as ArrayBuffer</li>
+                    <li>Splits files into 5MB chunks for efficient transfer</li>
+                    <li>Uploads chunks via POST to /api/upload/chunk</li>
+                    <li>Server assembles chunks and stores in .uploads/ directory</li>
+                    <li>Files auto-deleted after 5 minutes for demo purposes</li>
+                  </ul>
+                </div>
+              </div>
+            </details>
+          </div>
+        </div>
+      </div>
+
+      <PageHeadline
+        title="Manual Upload"
+        description="Upload files with drag-and-drop and progress tracking."
+      >
+        <h2>Manual Upload</h2>
+      </PageHeadline>
+
+
       <div>
-        <h3 className="text-lg font-semibold mb-2">Upload Files</h3>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
+        <p className="text-md text-gray-600 dark:text-gray-400 mb-4">
           Drag and drop your files or click to browse
         </p>
       </div>
@@ -398,13 +437,7 @@ export default function ManualUploadPage() {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex justify-between pt-4">
-            <button
-              onClick={() => router.back()}
-              className="px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600"
-            >
-              Cancel
-            </button>
+          <div className="flex justify-end pt-4">
             <button
               onClick={handleUpload}
               disabled={files.length === 0 || isProcessing || isUploading}
@@ -424,6 +457,6 @@ export default function ManualUploadPage() {
           Processing files...
         </div>
       )}
-    </div>
+    </PageMain>
   );
 }
