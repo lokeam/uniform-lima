@@ -7,11 +7,16 @@ import { PageMain } from "@/components/layout/page-main";
 
 // Components
 import { ImageLabelPopup } from '@/app/demos/image-labels/components/ImageLabelPopup';
+import { CanvasToolbar } from '@/components/ui/CanvasToolbar/CanvasToolbar';
 
 // Hooks
 import { useImageLabels } from '@/app/demos/image-labels/hooks/useImageLabels';
 import { useCanvasDrawing } from '@/app/demos/image-labels/hooks/useCanvasDrawing';
 import { useLabelPopup } from '@/app/demos/image-labels/hooks/useLabelPopup';
+import { useCanvasTools } from '@/app/demos/image-labels/hooks/useCanvasTools';
+
+// Types
+import type { BoundingBox } from '@/app/demos/image-labels/type';
 
 // Utils
 import { exportLabeledImage } from '@/app/demos/image-labels/utils/canvasDrawing';
@@ -21,8 +26,9 @@ import { SAMPLE_IMAGE, SUGGESTED_LABELS } from '@/app/demos/image-labels/constan
 
 
 export default function ImageLabelingPage() {
-  // Custom hooks
-  const { boxes, addBox, removeBox, clearAll } = useImageLabels();
+  // Original working hooks
+  const { currentTool, isPolygonTool, isSquareTool, isCursorTool } = useCanvasTools();
+  const { boxes, addBox, removeBox, clearAll, undo, redo, canUndo, canRedo } = useImageLabels();
 
   const {
     showPopup,
@@ -58,7 +64,6 @@ export default function ImageLabelingPage() {
   // Handle custom label
   const onCustomLabel = () => {
     if (!labelInput.trim()) return;
-
     onLabelSelect(labelInput.toUpperCase());
   };
 
@@ -71,7 +76,6 @@ export default function ImageLabelingPage() {
   // Export image
   const handleExport = () => {
     if (!canvasRef.current || !imageRef.current) return;
-
     exportLabeledImage(canvasRef.current, imageRef.current, boxes);
   };
 
@@ -87,27 +91,22 @@ export default function ImageLabelingPage() {
         <p className="text-sm text-gray-600 dark:text-gray-400">
           Click and drag on the image to draw bounding boxes.
         </p>
-        <div className="flex gap-2">
-          <button
-            onClick={handleExport}
-            disabled={boxes.length === 0}
-            className="px-6 py-2 bg-charcoal-900 text-white dark:bg-white dark:text-black rounded-xl transition duration-150 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-          >
-            Download Image
-          </button>
-          <button
-            onClick={clearAll}
-            disabled={boxes.length === 0}
-            className="px-6 py-2 rounded-xl bg-white text-black transition duration-200 hover:bg-gray-300 dark:border-neutral-700 dark:bg-neutral-950 dark:text-white dark:hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-          >
-            Clear All
-          </button>
-        </div>
       </div>
+
+      {/* Canvas Toolbar */}
+      <CanvasToolbar
+        undo={undo}
+        redo={redo}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onDownload={handleExport}
+        onClear={clearAll}
+      />
 
       {/* Image Canvas */}
       <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
         <div className="relative inline-block">
+          {/* eslint-disable-next-line react-hooks/rules-of-hooks */}
           <img
             ref={imageRef}
             src={SAMPLE_IMAGE}
