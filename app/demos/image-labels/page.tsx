@@ -1,6 +1,8 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
+import { useState } from 'react';
+
 // Layout components
 import { PageHeadline } from "@/components/layout/page-headline";
 import { PageMain } from "@/components/layout/page-main";
@@ -22,13 +24,15 @@ import type { BoundingBox } from '@/app/demos/image-labels/type';
 import { exportLabeledImage } from '@/app/demos/image-labels/utils/canvasDrawing';
 
 // Constants
-import { SAMPLE_IMAGE, SUGGESTED_LABELS } from '@/app/demos/image-labels/constants';
+import { SAMPLE_IMAGE, SUGGESTED_LABELS, TOOLBAR_HOVER_DESCRIPTIONS } from '@/app/demos/image-labels/constants';
 
 
 export default function ImageLabelingPage() {
+  const [hoverDescription, setHoverDescription] = useState(TOOLBAR_HOVER_DESCRIPTIONS.DEFAULT);
+
   // Original working hooks
-  const { currentTool, isPolygonTool, isSquareTool, isCursorTool } = useCanvasTools();
-  const { boxes, addBox, removeBox, clearAll, undo, redo, canUndo, canRedo } = useImageLabels();
+  const { boxes, addBox, removeBox, clearAll, undo, redo, canUndo, canRedo, updateBox } = useImageLabels();
+  const { currentTool, setTool } = useCanvasTools();
 
   const {
     showPopup,
@@ -48,9 +52,12 @@ export default function ImageLabelingPage() {
     handleMouseUp,
     handleImageLoad,
     clearCurrentBox,
+    isDragAndDropActive,
+    setIsDragAndDropActive,
   } = useCanvasDrawing({
     boxes,
     onBoxComplete: openPopup,
+    onBoxUpdate: updateBox,
   });
 
   // Handle label selection
@@ -86,10 +93,10 @@ export default function ImageLabelingPage() {
         description="Create custom canvas bounding box labels on any image and download this annotated file."
       />
 
-      {/* Action Buttons */}
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          Click and drag on the image to draw bounding boxes.
+      {/* Toolbar Button Hover Descriptions */}
+      <div className="flex flex-col items-center justify-between mb-2">
+        <p id="toolbar-btn-hover-descriptions" className="text-sm font-bold text-green-600">
+          {hoverDescription}
         </p>
       </div>
 
@@ -101,6 +108,10 @@ export default function ImageLabelingPage() {
         canRedo={canRedo}
         onDownload={handleExport}
         onClear={clearAll}
+        setTool={setTool}
+        setDragMode={setIsDragAndDropActive}
+        currentTool={currentTool}
+        onHoverChange={setHoverDescription}
       />
 
       {/* Image Canvas */}
@@ -121,7 +132,7 @@ export default function ImageLabelingPage() {
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={() => isDrawing && handleMouseUp()}
-            className="absolute top-0 left-0 w-full h-full cursor-crosshair"
+            className="absolute top-0 left-0 w-full h-full"
           />
         </div>
 

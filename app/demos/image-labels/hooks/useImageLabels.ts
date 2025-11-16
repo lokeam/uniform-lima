@@ -92,6 +92,14 @@ export function useImageLabels() {
     }
   };
 
+  const updateBox = (id: string, updates: { x: number; y: number }) => {
+    const newBoxes = boxes.map(box =>
+      box.id === id ? { ...box, ...updates } : box
+    );
+    setBoxes(newBoxes);
+    saveToHistory(newBoxes);
+  };
+
   return {
     boxes,
     addBox,
@@ -101,5 +109,6 @@ export function useImageLabels() {
     redo,
     canUndo: historyIndex > 0,
     canRedo: historyIndex < history.length - 1,
+    updateBox,
   };
 }

@@ -11,9 +11,12 @@ import { MIN_BOX_SIZE } from '@/app/demos/image-labels/constants';
 interface UseCanvasDrawingProps {
   boxes: BoundingBox[];
   onBoxComplete: (box: { x: number; y: number; width: number; height: number }) => void;
+  onBoxUpdate: (id: string, updates: { x: number; y: number }) => void;
 }
 
-export function useCanvasDrawing({ boxes, onBoxComplete }: UseCanvasDrawingProps) {
+export function useCanvasDrawing({ boxes, onBoxComplete, onBoxUpdate }: UseCanvasDrawingProps) {
+
+  // Drawing state
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentBox, setCurrentBox] = useState<{
     x: number;
@@ -23,6 +26,13 @@ export function useCanvasDrawing({ boxes, onBoxComplete }: UseCanvasDrawingProps
   } | null>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
 
+  // Drag and drop state
+  const [isDragAndDropActive, setIsDragAndDropActive] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [draggedBox, setDraggedBox] = useState<BoundingBox | null>(null);
+  const [dragOffset, setDragOffset] = useState<{ x: number, y: number } | null>(null);
+
+  // Refs
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
 
@@ -35,13 +45,22 @@ export function useCanvasDrawing({ boxes, onBoxComplete }: UseCanvasDrawingProps
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Draw existing boxes
-    boxes.forEach((box) => drawBoundingBox(ctx, box));
+    boxes.forEach((box) => {
+      if (!draggedBox || box.id !== draggedBox.id) {
+        drawBoundingBox(ctx, box);
+      }
+    });
+
+    // Draw dragged box at new position
+    if (draggedBox) {
+      drawBoundingBox(ctx, draggedBox);
+    }
 
     // Draw current box being drawn
     if (currentBox) {
       drawDashedBox(ctx, currentBox);
     }
-  }, [boxes, currentBox]);
+  }, [boxes, currentBox, draggedBox]);
 
   // Initialize canvas when image loads
   useEffect(() => {
@@ -65,23 +84,72 @@ export function useCanvasDrawing({ boxes, onBoxComplete }: UseCanvasDrawingProps
     }
   }, []);
 
+  const getBoxAtPosition = (x: number, y: number): BoundingBox | null => {
+    // Check boxes in reverse order (most recent boxes first)
+    for (let i = boxes.length - 1; i >= 0; i--) {
+      const box = boxes[i];
+
+      if (x >= box.x &&
+          x <= box.x + box.width &&
+          y >= box.y &&
+          y <= box.y + box.height) {
+        return box; // Found a hit!
+      }
+    }
+    return null; // No box was clicked
+  };
+
+  const handleDragModeClick = (x: number, y: number) => {
+    const clickedBox = getBoxAtPosition(x, y);
+    if (clickedBox) {
+
+      // Remember which box we are dragging
+      console.log('Starting drag for box:', clickedBox.id);
+      setDraggedBox(clickedBox);
+
+      // Keep track of left and top edges
+      setDragOffset({ x: x - clickedBox.x, y: y - clickedBox.y });
+      setIsDragging(true);
+    }
+  };
+
+  const handleDrawModeClick = (x: number, y: number) => {
+    setIsDrawing(true);
+    setCurrentBox({ x, y, width: 0, height: 0 });
+  };
+
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const { x, y } = getScaledCoordinates(e, canvas);
-    setIsDrawing(true);
-    setCurrentBox({ x, y, width: 0, height: 0 });
+
+    if (isDragAndDropActive) {
+      handleDragModeClick(x, y);
+    } else {
+      handleDrawModeClick(x, y);
+    }
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || !currentBox) return;
-
+    // Guard clause for canvas, get coordinates
     const canvas = canvasRef.current;
-
     if (!canvas) return;
-
     const { x: currentX, y: currentY } = getScaledCoordinates(e, canvas);
+
+    // Handle dragging
+    if (isDragging && draggedBox && dragOffset) {
+      const newX = currentX - dragOffset.x;
+      const newY = currentY - dragOffset.y;
+
+      setDraggedBox({ ...draggedBox, x: newX, y: newY });
+      drawBoxes();
+
+      return;
+    }
+
+    // Handle drawing
+    if (!isDrawing || !currentBox) return;
     const width = currentX - currentBox.x;
     const height = currentY - currentBox.y;
 
@@ -90,6 +158,21 @@ export function useCanvasDrawing({ boxes, onBoxComplete }: UseCanvasDrawingProps
   };
 
   const handleMouseUp = () => {
+    // Handle end of dragging
+    if (isDragging && draggedBox) {
+      console.log('Drag ended, final position:', draggedBox.x, draggedBox.y);
+      // Save the final position
+      onBoxUpdate(draggedBox.id, {
+        x: draggedBox.x,
+        y: draggedBox.y
+      });
+
+      setIsDragging(false);
+      setDraggedBox(null);
+      setDragOffset(null);
+      return;
+    }
+
     if (
       !currentBox ||
       Math.abs(currentBox.width) < MIN_BOX_SIZE ||
@@ -134,5 +217,7 @@ export function useCanvasDrawing({ boxes, onBoxComplete }: UseCanvasDrawingProps
     handleMouseUp,
     handleImageLoad,
     clearCurrentBox,
+    isDragAndDropActive,
+    setIsDragAndDropActive,
   };
 }
