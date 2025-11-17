@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import type { BoundingBox } from '@/app/demos/image-labels/type';
+import type { Shape, Polygon } from '@/app/demos/image-labels/hooks/useDrawCanvasPolygon';
 import {
   drawBoundingBox,
+  drawPolygon,
   drawDashedBox,
   getScaledCoordinates,
   normalizeBox,
@@ -9,12 +11,12 @@ import {
 import { MIN_BOX_SIZE } from '@/app/demos/image-labels/constants';
 
 interface UseCanvasDrawingProps {
-  boxes: BoundingBox[];
+  drawnShapes: Shape[];
   onBoxComplete: (box: { x: number; y: number; width: number; height: number }) => void;
   onBoxUpdate: (id: string, updates: { x: number; y: number }) => void;
 }
 
-export function useCanvasDrawing({ boxes, onBoxComplete, onBoxUpdate }: UseCanvasDrawingProps) {
+export function useCanvasDrawing({ drawnShapes, onBoxComplete, onBoxUpdate }: UseCanvasDrawingProps) {
 
   // Drawing state
   const [isDrawing, setIsDrawing] = useState(false);
@@ -45,9 +47,13 @@ export function useCanvasDrawing({ boxes, onBoxComplete, onBoxUpdate }: UseCanva
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Draw existing boxes
-    boxes.forEach((box) => {
-      if (!draggedBox || box.id !== draggedBox.id) {
-        drawBoundingBox(ctx, box);
+    drawnShapes.forEach((shape) => {
+      if (!draggedBox || shape.id !== draggedBox.id) {
+        if (shape.type === 'box') {
+          drawBoundingBox(ctx, shape as BoundingBox);
+        } else if (shape.type === 'polygon') {
+          drawPolygon(ctx, shape as Polygon);
+        }
       }
     });
 
@@ -60,7 +66,7 @@ export function useCanvasDrawing({ boxes, onBoxComplete, onBoxUpdate }: UseCanva
     if (currentBox) {
       drawDashedBox(ctx, currentBox);
     }
-  }, [boxes, currentBox, draggedBox]);
+  }, [drawnShapes, currentBox, draggedBox]);
 
   // Initialize canvas when image loads
   useEffect(() => {
@@ -86,6 +92,7 @@ export function useCanvasDrawing({ boxes, onBoxComplete, onBoxUpdate }: UseCanva
 
   const getBoxAtPosition = (x: number, y: number): BoundingBox | null => {
     // Check boxes in reverse order (most recent boxes first)
+    const boxes = drawnShapes.filter(shape => shape.type === 'box').map(shape => shape as BoundingBox);
     for (let i = boxes.length - 1; i >= 0; i--) {
       const box = boxes[i];
 

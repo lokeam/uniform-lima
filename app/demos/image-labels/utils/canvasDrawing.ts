@@ -1,4 +1,5 @@
 import type { BoundingBox } from '@/app/demos/image-labels/type';
+import type { Polygon, Shape } from '../hooks/useDrawCanvasPolygon';
 
 // Canvas drawing constants
 const LABEL_FONT = '14px sans-serif';
@@ -48,6 +49,46 @@ export function drawDashedBox(
   ctx.setLineDash([]);
 }
 
+export function drawPolygon(
+  ctx: CanvasRenderingContext2D,
+  polygon: Polygon
+): void {
+  if (polygon.points.length < 2) return;
+
+  const color = polygon.color || '#007bff';
+
+  // Draw polygon outline
+  ctx.beginPath();
+  ctx.moveTo(polygon.points[0].x, polygon.points[0].y);
+
+  polygon.points.forEach(point => {
+    ctx.lineTo(point.x, point.y)
+  });
+
+  ctx.closePath();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = BOX_LINE_WIDTH;
+  ctx.stroke();
+
+  if (polygon.points.length > 0) {
+    const firstPoint = polygon.points[0];
+
+    // Draw label background
+    ctx.fillStyle = color;
+    ctx.font = LABEL_FONT;
+    const textWidth = ctx.measureText(polygon.label).width;
+    ctx.fillRect(
+      firstPoint.x, firstPoint.y - LABEL_HEIGHT, textWidth + LABEL_PADDING, LABEL_HEIGHT
+    );
+
+    // Draw label text
+    ctx.fillStyle = 'white';
+    ctx.fillText(polygon.label, firstPoint.x + LABEL_OFFSET_X, firstPoint.y - LABEL_OFFSET_Y);
+  }
+
+
+}
+
 /**
  * Get scaled coordinates from mouse event
  */
@@ -88,7 +129,7 @@ export function normalizeBox(box: {
 export function exportLabeledImage(
   canvas: HTMLCanvasElement,
   image: HTMLImageElement,
-  boxes: BoundingBox[]
+  shapes: Shape[]
 ): void {
   // Create a temporary canvas to combine image + labels
   const exportCanvas = document.createElement('canvas');
@@ -101,7 +142,13 @@ export function exportLabeledImage(
   ctx.drawImage(image, 0, 0);
 
   // Draw all the boxes and labels on top
-  boxes.forEach((box) => drawBoundingBox(ctx, box));
+  shapes.forEach((shape) => {
+    if (shape.type === 'box') {
+      drawBoundingBox(ctx, shape);
+    } else if (shape.type === 'polygon') {
+      drawPolygon(ctx, shape);
+    }
+  });
 
   // Download the image
   exportCanvas.toBlob((blob) => {

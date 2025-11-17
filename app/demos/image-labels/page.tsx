@@ -12,7 +12,7 @@ import { ImageLabelPopup } from '@/app/demos/image-labels/components/ImageLabelP
 import { CanvasToolbar } from '@/components/ui/CanvasToolbar/CanvasToolbar';
 
 // Hooks
-import { useImageLabels } from '@/app/demos/image-labels/hooks/useImageLabels';
+import { useShapeManager } from '@/app/demos/image-labels/hooks/useShapeManager';
 import { useCanvasDrawing } from '@/app/demos/image-labels/hooks/useCanvasDrawing';
 import { useLabelPopup } from '@/app/demos/image-labels/hooks/useLabelPopup';
 import { useCanvasTools } from '@/app/demos/image-labels/hooks/useCanvasTools';
@@ -21,17 +21,19 @@ import { useCanvasTools } from '@/app/demos/image-labels/hooks/useCanvasTools';
 import type { BoundingBox } from '@/app/demos/image-labels/type';
 
 // Utils
-import { exportLabeledImage } from '@/app/demos/image-labels/utils/canvasDrawing';
+import { exportLabeledImage, drawBoundingBox, drawPolygon } from '@/app/demos/image-labels/utils/canvasDrawing';
 
 // Constants
 import { SAMPLE_IMAGE, SUGGESTED_LABELS, TOOLBAR_HOVER_DESCRIPTIONS } from '@/app/demos/image-labels/constants';
+import { Polygon, useDrawCanvasPolygon } from './hooks/useDrawCanvasPolygon';
 
 
 export default function ImageLabelingPage() {
   const [hoverDescription, setHoverDescription] = useState(TOOLBAR_HOVER_DESCRIPTIONS.DEFAULT);
 
+
   // Original working hooks
-  const { boxes, addBox, removeBox, clearAll, undo, redo, canUndo, canRedo, updateBox } = useImageLabels();
+  const { drawnShapes, addBox, addPolygon, removeShape, clearAll, undo, redo, canUndo, canRedo, updateBox } = useShapeManager();
   const { currentTool, setTool } = useCanvasTools();
 
   const {
@@ -55,17 +57,58 @@ export default function ImageLabelingPage() {
     isDragAndDropActive,
     setIsDragAndDropActive,
   } = useCanvasDrawing({
-    boxes,
+    drawnShapes,
     onBoxComplete: openPopup,
     onBoxUpdate: updateBox,
   });
 
+  const {
+    currentPoints,
+    isDrawing: isDrawingPoygon,
+    handleCanvasClick,
+    drawCurrentPolygon,
+    getStatusMessage,
+    canCompletePolygon,
+    pendingPolygon,
+    completeWithLabel,
+  } = useDrawCanvasPolygon({
+    canvasRef,
+    onPolygonComplete: (polygon) => {
+      console.log('Polygon completed with label:', polygon);
+      // Polygon already has label, just save it
+      addPolygon(polygon);
+    },
+    onLabelRequest: () => {
+      console.log('Polygon requesting label, showing popup');
+      openPopup({ x: 0, y: 0, width: 0, height: 0 });
+    },
+    distanceInPxToCloseShape: 15,
+    isActive: currentTool === 'polygon',
+  });
+
+  // Serve different cursors based on tool
+  const getCursorKeyword = () => {
+    if (currentTool === 'cursor') return 'move';
+    if (currentTool === 'square' || currentTool === 'polygon') return 'crosshair';
+    return 'default';
+  }
+
   // Handle label selection
   const onLabelSelect = (label: string) => {
-    handleLabelSelect(label, (box, selectedLabel) => {
-      addBox(box, selectedLabel);
-      clearCurrentBox();
-    });
+    console.log('Label selected:', label, 'pendingPolygon:', !!pendingPolygon);
+    if (pendingPolygon) {
+      console.log('Completing polygon with label:', label);
+      // Complete polygon with selected label
+      completeWithLabel(label);
+      closePopup();
+    } else {
+      console.log('Adding box with label:', label);
+      // Handle box labeling (existing logic)
+      handleLabelSelect(label, (box, selectedLabel) => {
+        addBox(box, selectedLabel);
+        clearCurrentBox();
+      });
+    }
   };
 
   // Handle custom label
@@ -73,6 +116,22 @@ export default function ImageLabelingPage() {
     if (!labelInput.trim()) return;
     onLabelSelect(labelInput.toUpperCase());
   };
+
+  // Unified handler for mouse events, handles either bounding boxes or polygons
+  const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    console.log('Canvas clicked! Current tool:', currentTool);
+
+    // Listen if polygon tool is active
+    if (currentTool === 'polygon') {
+      console.log('Polygon tool active - calling handleCanvasClick');
+      handleCanvasClick(e);
+      return;
+    }
+
+    console.log('Box tool active - calling handleMouseDown');
+    // Otherwise handle bounding box
+    handleMouseDown(e);
+  }
 
   // Handle cancel
   const onCancel = () => {
@@ -83,7 +142,7 @@ export default function ImageLabelingPage() {
   // Export image
   const handleExport = () => {
     if (!canvasRef.current || !imageRef.current) return;
-    exportLabeledImage(canvasRef.current, imageRef.current, boxes);
+    exportLabeledImage(canvasRef.current, imageRef.current, drawnShapes);
   };
 
   return (
@@ -128,11 +187,12 @@ export default function ImageLabelingPage() {
           />
           <canvas
             ref={canvasRef}
-            onMouseDown={handleMouseDown}
+            onMouseDown={handleCanvasMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={() => isDrawing && handleMouseUp()}
             className="absolute top-0 left-0 w-full h-full"
+            style={{ cursor: getCursorKeyword() }}
           />
         </div>
 
@@ -148,19 +208,21 @@ export default function ImageLabelingPage() {
         )}
       </div>
 
-      {boxes.length > 0 && (
+      {drawnShapes.length > 0 && (
         <div className="bg-gray-50 dark:bg-gray-800 border rounded-lg p-4">
-          <h3 className="font-semibold mb-3">Annotations ({boxes.length}):</h3>
-          {boxes.map((box) => (
-            <div key={box.id} className="flex items-center justify-between mb-2 p-2 bg-white dark:bg-gray-700 rounded">
+          <h3 className="font-semibold mb-3">Annotations ({drawnShapes.length}):</h3>
+          {drawnShapes.map((shape) => (
+            <div key={shape.id} className="flex items-center justify-between mb-2 p-2 bg-white dark:bg-gray-700 rounded">
               <div className="flex items-center gap-3">
-                <div className="w-4 h-4 rounded" style={{ backgroundColor: box.color }} />
-                <span className="font-medium">{box.label}</span>
+                <div className="w-4 h-4 rounded" style={{ backgroundColor: shape.color }} />
+                <span className="font-medium">{shape.label}</span>
                 <span className="text-xs text-gray-500">
-                  {Math.round(box.width)}×{Math.round(box.height)}px
+                  {shape.type === 'box'
+                    ? `${Math.round((shape as BoundingBox).width)}×${Math.round((shape as BoundingBox).height)}px`
+                    : `${(shape as Polygon).points.length} points`}
                 </span>
               </div>
-              <button onClick={() => removeBox(box.id)} className="text-red-600">Remove</button>
+              <button onClick={() => removeShape(shape.id)} className="text-red-600">Remove</button>
             </div>
           ))}
         </div>
