@@ -1,5 +1,9 @@
 import { useState } from 'react';
 
+/*
+  Hook for managing the label popup.
+  Handles opening and closing the popup, as well as functionality for the label selection.
+*/
 export function useLabelPopup() {
   const [showPopup, setShowPopup] = useState(false);
   const [pendingBox, setPendingBox] = useState<{

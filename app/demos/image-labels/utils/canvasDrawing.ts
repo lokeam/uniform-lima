@@ -1,5 +1,5 @@
 import type { BoundingBox } from '@/app/demos/image-labels/type';
-import type { Polygon, Shape } from '../hooks/useDrawCanvasPolygon';
+import type { Polygon, Shape } from '@/app/demos/image-labels/hooks/useDrawCanvasPolygon';
 
 // Canvas drawing constants
 const LABEL_FONT = '14px sans-serif';

@@ -1,5 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
+
+// Utils
 import { getScaledCoordinates } from '@/app/demos/image-labels/utils/canvasDrawing';
+
+// Types
 import { BoundingBox } from '@/app/demos/image-labels/type';
 
 export interface Point {
@@ -25,18 +29,30 @@ export type Shape = BoundingBoxWithType | Polygon;
 
 interface UseCanvasPolygonProps {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
-  onPolygonComplete: (polygon: Omit<Polygon, 'type'>) => void;
-  onLabelRequest: () => void;
   distanceInPxToCloseShape: number;
   isActive?: boolean;
+  drawnShapes?: Shape[];
+  currentTool?: string;
+  onPolygonComplete: (polygon: Omit<Polygon, 'type'>) => void;
+  onLabelRequest: () => void;
+  onPolygonUpdate?: (polygonId: string, updates: Partial<Polygon>) => void;
+  drawBoxes?: () => void;
 }
 
+/*
+  Hook for drawing and dragging polygons on canvas.
+  Handles polygon creation by clicking points and dragging with cursor tool.
+ */
 export function useDrawCanvasPolygon({
   canvasRef,
   onPolygonComplete,
   onLabelRequest,
   distanceInPxToCloseShape = 10,
   isActive = true,
+  onPolygonUpdate,
+  drawnShapes = [],
+  currentTool = 'polygon',
+  drawBoxes,
 }: UseCanvasPolygonProps) {
   // state
   const [currentPoints, setCurrentPoints] = useState<Point[]>([]);
@@ -45,10 +61,74 @@ export function useDrawCanvasPolygon({
   const [currentPolygonId, setCurrentPolygonId] = useState<string | null>(null);
   const [pendingPolygon, setPendingPolygon] = useState<Omit<Polygon, 'type'> | null>(null);
 
+  // Drag state for cursor tool
+  const [isDragging, setIsDragging] = useState(false);
+  const [draggedPolygon, setDraggedPolygon] = useState<Polygon | null>(null);
+  const [dragOffset, setDragOffset] = useState<{ x: number, y: number } | null>(null);
+
   // generate unique ID for new polygon
  const generatePolygonId = useCallback(() => {
     return `polygon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }, []);
+
+  // check if a point is inside a polygon using ray casting algorithm
+  // description example: (https://people.utm.my/shahabuddin/?p=6277)
+  const isPointWithinPolygon = useCallback((point: Point, polygon: Polygon): boolean => {
+    // Unpack the point's coordinates
+    const { x: targetPointX, y: targetPointY } = point;
+
+    // List of polygon corners
+    const corners = polygon.points;
+
+    // Start by assuming the point is outside the polygon
+    let isWithinPolygon = false;
+
+    // Walk around the polygon, checking one edge at a time
+    for (
+      let currCorner = 0, prevCorner = corners.length - 1;
+      currCorner < corners.length;
+      prevCorner = currCorner++
+    ) {
+      const currX = corners[currCorner].x;
+      const currY = corners[currCorner].y;
+      const prevX = corners[prevCorner].x;
+      const prevY = corners[prevCorner].y;
+
+     // Q1: Does the targetPoint's y position sit between the positions two corners' y position?
+      const pointIsBetweenCornerYs = (currY > targetPointY) !== (prevY > targetPointY);
+
+      if (pointIsBetweenCornerYs) {
+        // Q2: If yes, is the targetPoint's x value less than the potential value of the area between the two corners?
+        // aka (is there a line in front of the target point)
+        const edgeCrossingX = (prevX - currX) * (targetPointY - currY) / (prevY - currY) + currX;
+
+        if (targetPointX < edgeCrossingX) {
+          // Flip inside/outside every time the ray hits an edge
+          isWithinPolygon = !isWithinPolygon;
+        }
+      }
+    }
+
+    return isWithinPolygon;
+  }, []);
+
+
+  // Find where the polygon is on the canvas
+  const getPolygonAtPosition = useCallback((x: number, y: number): Polygon | null => {
+    const currPoint = { x, y };
+
+    // Check drawn polygons starting at most recently added
+    for (let i = drawnShapes.length - 1; i >= 0; i--) {
+      const currShape = drawnShapes[i];
+
+      if (currShape.type === 'polygon' && isPointWithinPolygon(currPoint, currShape as Polygon)) {
+        return currShape as Polygon;
+      }
+    }
+
+    return null
+  }, [drawnShapes, isPointWithinPolygon]);
+
 
   // start new polygon
   const startDrawingPolygon = useCallback(() => {
@@ -137,41 +217,153 @@ export function useDrawCanvasPolygon({
     return false;
   }, [currentPoints, isDrawing, isActive, distanceInPxToCloseShape, completePolygon]);
 
+
   // handle clicking on the canvas
-  const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    console.log('handleCanvasClick called! isActive:', isActive, 'isDrawing:', isDrawing);
+  const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>): boolean => {
+    console.log('handleCanvasClick called! isActive:', isActive, 'isDrawing:', isDrawing, 'currentTool:', currentTool);
 
     if (!isActive) {
       console.log('Polygon hook not active, returning');
-      return;
+      return false;
     }
 
     const canvas = canvasRef.current;
     if (!canvas) {
       console.log('No canvas ref, returning');
-      return;
+      return false;
     }
 
     const point = getScaledCoordinates(e, canvas);
     console.log('Got point:', point);
 
-    // start drawing polygon if we're not currently drawing
-    if (!isDrawing) {
-      console.log('Starting new polygon');
-      startDrawingPolygon();
-      setCurrentPoints([point]);
-      return;
+    // Handle cursor tool - check for polygon dragging
+    if (currentTool === 'cursor') {
+      const clickedPolygon = getPolygonAtPosition(point.x, point.y);
+
+      if (clickedPolygon && onPolygonUpdate) {
+        console.log('Starting drag for polygon:', clickedPolygon.id);
+
+        setDraggedPolygon(clickedPolygon);
+        setIsDragging(true);
+
+        // Calculate offset from polygon center
+        const centerX = clickedPolygon.points.reduce((sum, p) => sum + p.x, 0) / clickedPolygon.points.length;
+        const centerY = clickedPolygon.points.reduce((sum, p) => sum + p.y, 0) / clickedPolygon.points.length;
+
+        setDragOffset({ x: point.x - centerX, y: point.y - centerY });
+
+        // Handled polygon dragging
+        return true;
+      }
+
+      // No polygon clicked
+      return false;
     }
 
-    console.log('Adding point to existing polygon');
-    // add point to the current polygon
-    drawPoint(point);
+    // Handle polygon drawing tool
+    if (currentTool === 'polygon') {
+      // start drawing polygon if we're not currently drawing
+      if (!isDrawing) {
+        console.log('Starting new polygon');
 
-  }, [canvasRef, isActive, isDrawing, startDrawingPolygon, drawPoint]);
+        startDrawingPolygon();
+        setCurrentPoints([point]);
+
+        // Handled polygon drawing
+        return true;
+      }
+
+      console.log('Adding point to existing polygon');
+
+      // add point to the current polygon
+      drawPoint(point);
+
+      // Handled polygon drawing
+      return true;
+    }
+
+    // Didn't handle dragging the polygon
+    return false;
+
+  }, [canvasRef, isActive, isDrawing, currentTool, startDrawingPolygon, drawPoint, getPolygonAtPosition, onPolygonUpdate]);
+
+  // handle mouse move for dragging
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDragging || !draggedPolygon || !dragOffset || !onPolygonUpdate) return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const point = getScaledCoordinates(e, canvas);
+
+    // Calculate new center position
+    const newCenterX = point.x - dragOffset.x;
+    const newCenterY = point.y - dragOffset.y;
+
+    // Calculate current center
+    const currentCenterX = draggedPolygon.points.reduce((sum, p) => sum + p.x, 0) / draggedPolygon.points.length;
+    const currentCenterY = draggedPolygon.points.reduce((sum, p) => sum + p.y, 0) / draggedPolygon.points.length;
+
+    // Calculate offset to apply to all points
+    const deltaX = newCenterX - currentCenterX;
+    const deltaY = newCenterY - currentCenterY;
+
+    // Update all points
+    const newPoints = draggedPolygon.points.map(p => ({
+      x: p.x + deltaX,
+      y: p.y + deltaY
+    }));
+
+    setDraggedPolygon({ ...draggedPolygon, points: newPoints });
+  }, [isDragging, draggedPolygon, dragOffset, onPolygonUpdate, canvasRef]);
+
+  // handle mouse up to end dragging
+  const handleMouseUp = useCallback(() => {
+    if (isDragging && draggedPolygon && onPolygonUpdate) {
+      console.log('Drag ended, final position for polygon:', draggedPolygon.id);
+      // Save the final position
+      onPolygonUpdate(draggedPolygon.id, { points: draggedPolygon.points });
+    }
+
+    setIsDragging(false);
+    setDraggedPolygon(null);
+    setDragOffset(null);
+  }, [isDragging, draggedPolygon, onPolygonUpdate]);
 
   // handle drawing the polygon on the canvas
   const drawCurrentPolygon = useCallback((ctx: CanvasRenderingContext2D) => {
     console.log('drawCurrentPolygon called with', currentPoints.length, 'points');
+
+    // Drag a draggedPolygon if it exists
+    if (draggedPolygon) {
+      ctx.beginPath();
+      ctx.moveTo(draggedPolygon.points[0].x, draggedPolygon.points[0].y);
+
+      // Create the path of nodes for lines to connect
+      for (let i = 1; i < draggedPolygon.points.length; i++) {
+        ctx.lineTo(draggedPolygon.points[i].x, draggedPolygon.points[i].y);
+      }
+
+      // Close the shape, style it and paint on canvas
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(0, 123, 255, 0.2)';
+      ctx.fill();
+      ctx.strokeStyle = '#28a745';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Draw points for dragged polygon
+      draggedPolygon.points.forEach((point, index) => {
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, 5, 0, Math.PI * 2);
+        ctx.fillStyle = index === 0 ? '#28a745' : '#dc3545';
+        ctx.fill();
+        ctx.strokeStyle = '#f9f9f9';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      });
+    }
+
     // if we don't have any points, quit
     if (currentPoints.length === 0) return;
 
@@ -225,7 +417,7 @@ export function useDrawCanvasPolygon({
       ctx.stroke();
       ctx.setLineDash([]);
     }
-  }, [currentPoints, isComplete, distanceInPxToCloseShape]);
+  }, [currentPoints, isComplete, distanceInPxToCloseShape, draggedPolygon]);
 
   // get the cursor style based on the state
   const getCursorStyle = useCallback(() => {
@@ -259,15 +451,36 @@ export function useDrawCanvasPolygon({
     }
   }, [currentPoints, isActive, canvasRef, drawCurrentPolygon]);
 
+  // Redraw canvas when draggedPolygon changes during dragging
+  useEffect(() => {
+    if (draggedPolygon && isDragging && drawBoxes) {
+      const canvas = canvasRef.current;
+      const ctx = canvas?.getContext('2d');
+
+      if (canvas && ctx) {
+        // Clear and redraw all shapes
+        drawBoxes();
+
+        // Draw the draggedPolygon on top
+        drawCurrentPolygon(ctx);
+      }
+    }
+  }, [draggedPolygon, isDragging, canvasRef, drawBoxes, drawCurrentPolygon]);
+
   return {
     // state
     currentPoints,
     isDrawing,
+    isComplete,
     currentPolygonId,
     pendingPolygon,
+    isDragging,
+    draggedPolygon,
 
     // actions
     handleCanvasClick,
+    handleMouseMove,
+    handleMouseUp,
     startDrawingPolygon,
     completePolygon,
     completeWithLabel,

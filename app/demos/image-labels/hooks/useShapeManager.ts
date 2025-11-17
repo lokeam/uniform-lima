@@ -10,8 +10,14 @@ import { LABEL_COLORS } from '@/app/demos/image-labels/constants';
 
 const STORAGE_KEY = 'image-labels';
 
+
+/*
+  Hook for managing all shapes (boxes and polygons) on the canvas.
+  Handles CRUD operations, persistence, and undo/redo functionality.
+*/
 export function useShapeManager() {
   const [drawnShapes, setDrawnShapes] = useState<Shape[]>(() => {
+
     // Load saved boxes from session storage on mount
     if (typeof window !== 'undefined') {
       const saved = sessionStorage.getItem(STORAGE_KEY);
@@ -36,6 +42,7 @@ export function useShapeManager() {
 
   const saveToHistory = (newShapes: Shape[]) => {
     const newHistory = history.slice(0, historyIndex + 1);
+
     newHistory.push([...newShapes]);
     setHistory(newHistory);
     setHistoryIndex(newHistory.length - 1);
@@ -110,6 +117,19 @@ export function useShapeManager() {
     saveToHistory(newBoxes);
   };
 
+  const updatePolygon = (polygonId: string, updates: Partial<Polygon>) => {
+    setDrawnShapes(prevShapes => {
+      const newShapes = prevShapes.map(shape =>
+        shape.id === polygonId && shape.type === 'polygon'
+          ? { ...shape, ...updates }
+          : shape
+      );
+      saveToHistory(newShapes);
+
+      return newShapes;
+    })
+  }
+
   return {
     drawnShapes,
     addBox,
@@ -121,5 +141,6 @@ export function useShapeManager() {
     canUndo: historyIndex > 0,
     canRedo: historyIndex < history.length - 1,
     updateBox,
+    updatePolygon,
   };
 }

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import type { BoundingBox } from '@/app/demos/image-labels/type';
-import type { Shape, Polygon } from '@/app/demos/image-labels/hooks/useDrawCanvasPolygon';
+
+// Utils
 import {
   drawBoundingBox,
   drawPolygon,
@@ -8,6 +8,12 @@ import {
   getScaledCoordinates,
   normalizeBox,
 } from '@/app/demos/image-labels/utils/canvasDrawing';
+
+// Types
+import type { BoundingBox } from '@/app/demos/image-labels/type';
+import type { Shape, Polygon } from '@/app/demos/image-labels/hooks/useDrawCanvasPolygon';
+
+// Constants
 import { MIN_BOX_SIZE } from '@/app/demos/image-labels/constants';
 
 interface UseCanvasDrawingProps {
@@ -16,8 +22,11 @@ interface UseCanvasDrawingProps {
   onBoxUpdate: (id: string, updates: { x: number; y: number }) => void;
 }
 
-export function useCanvasDrawing({ drawnShapes, onBoxComplete, onBoxUpdate }: UseCanvasDrawingProps) {
-
+/*
+  Hook for drawing and dragging boxes on canvas.
+  Handles box creation by clicking and dragging with cursor tool.
+ */
+export function useDrawCanvasBox({ drawnShapes, onBoxComplete, onBoxUpdate }: UseCanvasDrawingProps) {
   // Drawing state
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentBox, setCurrentBox] = useState<{
@@ -226,5 +235,6 @@ export function useCanvasDrawing({ drawnShapes, onBoxComplete, onBoxUpdate }: Us
     clearCurrentBox,
     isDragAndDropActive,
     setIsDragAndDropActive,
-  };
+    drawBoxes,
+  }
 }

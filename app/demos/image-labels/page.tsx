@@ -13,7 +13,7 @@ import { CanvasToolbar } from '@/components/ui/CanvasToolbar/CanvasToolbar';
 
 // Hooks
 import { useShapeManager } from '@/app/demos/image-labels/hooks/useShapeManager';
-import { useCanvasDrawing } from '@/app/demos/image-labels/hooks/useCanvasDrawing';
+import { useDrawCanvasBox } from '@/app/demos/image-labels/hooks/useDrawCanvasBox';
 import { useLabelPopup } from '@/app/demos/image-labels/hooks/useLabelPopup';
 import { useCanvasTools } from '@/app/demos/image-labels/hooks/useCanvasTools';
 
@@ -21,7 +21,7 @@ import { useCanvasTools } from '@/app/demos/image-labels/hooks/useCanvasTools';
 import type { BoundingBox } from '@/app/demos/image-labels/type';
 
 // Utils
-import { exportLabeledImage, drawBoundingBox, drawPolygon } from '@/app/demos/image-labels/utils/canvasDrawing';
+import { exportLabeledImage } from '@/app/demos/image-labels/utils/canvasDrawing';
 
 // Constants
 import { SAMPLE_IMAGE, SUGGESTED_LABELS, TOOLBAR_HOVER_DESCRIPTIONS } from '@/app/demos/image-labels/constants';
@@ -31,11 +31,23 @@ import { Polygon, useDrawCanvasPolygon } from './hooks/useDrawCanvasPolygon';
 export default function ImageLabelingPage() {
   const [hoverDescription, setHoverDescription] = useState(TOOLBAR_HOVER_DESCRIPTIONS.DEFAULT);
 
-
-  // Original working hooks
-  const { drawnShapes, addBox, addPolygon, removeShape, clearAll, undo, redo, canUndo, canRedo, updateBox } = useShapeManager();
+  // Toolbar
+  const {
+    drawnShapes,
+    addBox,
+    addPolygon,
+    removeShape,
+    clearAll,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    updateBox,
+    updatePolygon,
+  } = useShapeManager();
   const { currentTool, setTool } = useCanvasTools();
 
+  // Label popup
   const {
     showPopup,
     labelInput,
@@ -45,6 +57,7 @@ export default function ImageLabelingPage() {
     handleLabelSelect,
   } = useLabelPopup();
 
+  // Drawing boxes
   const {
     canvasRef,
     imageRef,
@@ -54,21 +67,19 @@ export default function ImageLabelingPage() {
     handleMouseUp,
     handleImageLoad,
     clearCurrentBox,
-    isDragAndDropActive,
     setIsDragAndDropActive,
-  } = useCanvasDrawing({
+    drawBoxes,
+  } = useDrawCanvasBox({
     drawnShapes,
     onBoxComplete: openPopup,
     onBoxUpdate: updateBox,
   });
 
+  // Drawing polygons
   const {
-    currentPoints,
-    isDrawing: isDrawingPoygon,
     handleCanvasClick,
-    drawCurrentPolygon,
-    getStatusMessage,
-    canCompletePolygon,
+    handleMouseMove: handlePolygonMouseMove,
+    handleMouseUp: handlePolygonMouseUp,
     pendingPolygon,
     completeWithLabel,
   } = useDrawCanvasPolygon({
@@ -83,13 +94,21 @@ export default function ImageLabelingPage() {
       openPopup({ x: 0, y: 0, width: 0, height: 0 });
     },
     distanceInPxToCloseShape: 15,
-    isActive: currentTool === 'polygon',
+    isActive: currentTool === 'polygon' || currentTool === 'cursor',
+    onPolygonUpdate: (polygonId, updates) => {
+      console.log('Updating polygon: ', polygonId, updates);
+      updatePolygon(polygonId, updates);
+    },
+    drawnShapes,
+    currentTool,
+    drawBoxes,
   });
 
   // Serve different cursors based on tool
   const getCursorKeyword = () => {
     if (currentTool === 'cursor') return 'move';
     if (currentTool === 'square' || currentTool === 'polygon') return 'crosshair';
+
     return 'default';
   }
 
@@ -98,11 +117,13 @@ export default function ImageLabelingPage() {
     console.log('Label selected:', label, 'pendingPolygon:', !!pendingPolygon);
     if (pendingPolygon) {
       console.log('Completing polygon with label:', label);
+
       // Complete polygon with selected label
       completeWithLabel(label);
       closePopup();
     } else {
       console.log('Adding box with label:', label);
+
       // Handle box labeling (existing logic)
       handleLabelSelect(label, (box, selectedLabel) => {
         addBox(box, selectedLabel);
@@ -117,20 +138,50 @@ export default function ImageLabelingPage() {
     onLabelSelect(labelInput.toUpperCase());
   };
 
-  // Unified handler for mouse events, handles either bounding boxes or polygons
+  // Unified handler for mouse events, used for either bounding boxes or polygons
   const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    console.log('Canvas clicked! Current tool:', currentTool);
+    console.log('Canvas clicked. Current tool:', currentTool);
 
     // Listen if polygon tool is active
     if (currentTool === 'polygon') {
-      console.log('Polygon tool active - calling handleCanvasClick');
       handleCanvasClick(e);
       return;
     }
 
-    console.log('Box tool active - calling handleMouseDown');
-    // Otherwise handle bounding box
-    handleMouseDown(e);
+  if (currentTool === 'cursor') {
+    // Try polygon handler first - it returns true if it handled the event
+    const polygonHandled = handleCanvasClick(e);
+    if (!polygonHandled) {
+      // Only try box handler if polygon didn't handle it
+      handleMouseDown(e);
+    }
+
+    return;
+  }
+
+  // Box drawing tool
+  handleMouseDown(e);
+  }
+
+  // Unified mouse move handler
+  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    // Always handle box operations (includes box dragging with cursor tool)
+    handleMouseMove(e);
+
+    // Handle polygon dragging when cursor tool is active
+    if (currentTool === 'cursor') {
+      handlePolygonMouseMove(e);
+    }
+  }
+
+  const handleCanvasMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    // Always handle box operations (includes box dragging)
+    handleMouseUp();
+
+    // Handle polygon dragging when cursor tool is active
+    if (currentTool === 'cursor') {
+      handlePolygonMouseUp();
+    }
   }
 
   // Handle cancel
@@ -176,7 +227,6 @@ export default function ImageLabelingPage() {
       {/* Image Canvas */}
       <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
         <div className="relative inline-block">
-          {/* eslint-disable-next-line react-hooks/rules-of-hooks */}
           <img
             ref={imageRef}
             src={SAMPLE_IMAGE}
@@ -188,9 +238,9 @@ export default function ImageLabelingPage() {
           <canvas
             ref={canvasRef}
             onMouseDown={handleCanvasMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={() => isDrawing && handleMouseUp()}
+            onMouseMove={handleCanvasMouseMove}
+            onMouseUp={handleCanvasMouseUp}
+            onMouseLeave={(e) => isDrawing && handleCanvasMouseUp(e)}
             className="absolute top-0 left-0 w-full h-full"
             style={{ cursor: getCursorKeyword() }}
           />
