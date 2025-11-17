@@ -114,16 +114,18 @@ export function useTextSelection(
     const normalizedActual = normalize(text);
 
     if (normalizedExpected !== normalizedActual) {
-      console.error('Word index mismatch:', {
+      console.warn('Selection does not align with word boundaries - skipping label:', {
         expectedText,
         actualText: text.trim(),
         normalizedExpected,
         normalizedActual,
         startWordIndex,
-        endWordIndex,
-        textBefore,
-        wordsBeforeCount: wordsBefore.length
+        endWordIndex
       });
+
+      // Alert user about word boundary requirement
+      alert('Please select complete words starting from the beginning of a word.');
+
       setShowPopup(false);
       return;
     }
