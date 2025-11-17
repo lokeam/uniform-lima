@@ -5,7 +5,7 @@
 
 <img width="668" alt="Screenshot 2025-10-27 at 4 44 55 AM" src="https://github.com/user-attachments/assets/a35153cd-c067-4f75-a55e-7f18800227c1" />
 
-<img width="668" alt="Screenshot 2025-10-27 at 4 45 31 AM" src="https://github.com/user-attachments/assets/c737af04-b3ca-47c2-89d6-02aa0d3cb5bd" />
+<img width="668" alt="Screenshot 2025-10-27 at 4 44 55 AM" src="https://github.com/user-attachments/assets/3fe025b1-d9cc-4c32-a866-f6a14be431b7" />
 
 <img width="668" alt="Uplabelr_manual" src="https://github.com/user-attachments/assets/2ea3ca8e-85ee-4f65-8d11-abfe33b1d871" />
 
@@ -38,6 +38,14 @@
   - Normalization layer that handles trailing punctuation and whitespace variations
   - Range preservation using cloneRange() to maintain selection state across async operations
   - Conflict detection with mismatch validation between expected and actual selected text
+
+   **Canvas-Based Image Labeling**
+   - Interactive polygon drawing with point-by-point creation
+   - [Ray casting algorithm](https://rosettacode.org/wiki/Ray-casting_algorithm) for precise polygon hit detection and selection
+   - Real-time drag-and-drop for repositioning shapes with visual feedback
+   - Dual-mode canvas system supporting both bounding boxes and complex polygons
+   - Tool-based interaction (cursor, polygon, box) with unified event handling
+   - Auto-close polygon detection based on proximity to starting point
 
   **Caching & Persistence**:
   - SessionStorage auto-saves labels on every change (zero data loss on refresh)
